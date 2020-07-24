@@ -14,7 +14,7 @@ var OAuth2Token = require('../models/oauth2token');
 var OpenHABAccessLog = require('../models/openhabaccesslog');
 var UserDevice = require('../models/userdevice');
 var UserDeviceLocationHistory = require('../models/userdevicelocationhistory');
-var form = require('express-form'),
+var form = require('provejs-express'),
     field = form.field;
 var path           = require('path')
     , templatesDir   = path.resolve(__dirname, '..', 'templates')
@@ -33,12 +33,12 @@ exports.lostpasswordget = function(req, res) {
 }
 
 exports.lostpasswordpostvalidate = form(
-    field("email", "E-Mail").trim().toLower().isEmail().required()
+    field("email", "E-Mail").toTrim().toLower().isEmail().isRequired()
 );
 
 exports.loginpostvalidate = form(
-    field("username", "E-Mail").trim().toLower().isEmail().required(),
-    field("password", "Password").trim().required()
+    field("username", "E-Mail").toTrim().toLower().isEmail().isRequired(),
+    field("password", "Password").toTrim().isRequired()
 );
 
 exports.lostpasswordpost = function(req, res) {
@@ -97,9 +97,9 @@ exports.lostpasswordresetget = function(req, res) {
 }
 
 exports.lostpasswordresetpostvalidate = form(
-    field("password", "New password").trim().required(),
-    field("password2", "Repeat new password").trim().required(),
-    field("resetCode", "Reset Code").required()
+    field("password", "New password").toTrim().isRequired(),
+    field("password2", "Repeat new password").toTrim().isRequired(),
+    field("resetCode", "Reset Code").isRequired()
 );
 
 exports.lostpasswordresetpost = function(req, res) {
@@ -166,8 +166,8 @@ exports.accountget = function(req, res) {
 }
 
 exports.accountpostvalidate = form(
-    field("openhabuuid", "openHAB UUID").trim().required(),
-    field("openhabsecret", "openHAB secret").trim().required()
+    field("openhabuuid", "openHAB UUID").toTrim().isRequired(),
+    field("openhabsecret", "openHAB secret").toTrim().isRequired()
 );
 
 exports.accountpost = function(req, res) {
@@ -189,9 +189,9 @@ exports.accountpost = function(req, res) {
 }
 
 exports.accountpasswordpostvalidate = form(
-    field("oldpassword", "Old password").trim().required(),
-    field("password", "New password").trim().required(),
-    field("password1", "Re-type new password").trim().required()
+    field("oldpassword", "Old password").toTrim().isRequired(),
+    field("password", "New password").toTrim().isRequired(),
+    field("password1", "Re-type new password").toTrim().isRequired()
 );
 
 exports.accountpasswordpost = function(req, res) {
@@ -347,25 +347,25 @@ exports.accountdeletepost = function(req, res) {
 }
 
 exports.registerpostvalidateall =     form(
-    field("agree", "Agreeing to terms and privacy policy").trim().required(),
-    field("username", "Username").trim().toLower().isEmail().required(),
-    field("password", "Password").trim().required(),
-    field("openhabuuid", "openHAB UUID").trim().required(),
-    field("openhabsecret", "openHAB secret").trim().required()
+    field("agree", "Agreeing to terms and privacy policy").toTrim().isRequired(),
+    field("username", "Username").toTrim().toLower().isEmail().isRequired(),
+    field("password", "Password").toTrim().isRequired(),
+    field("openhabuuid", "openHAB UUID").toTrim().isRequired(),
+    field("openhabsecret", "openHAB secret").toTrim().isRequired()
 );
 
 exports.registerpostvalidate =     form(
-	    field("username", "Username").trim().toLower().isEmail().required(),
-	    field("password", "Password").trim().required(),
-	    field("openhabuuid", "openHAB UUID").trim().required(),
-	    field("openhabsecret", "openHAB secret").trim().required()
-	);
+    field("username", "Username").toTrim().toLower().isEmail().isRequired(),
+    field("password", "Password").toTrim().isRequired(),
+    field("openhabuuid", "openHAB UUID").toTrim().isRequired(),
+    field("openhabsecret", "openHAB secret").toTrim().isRequired()
+);
 
 exports.registerpost = function(req, res) {
-    var registration_enabled = ("registration_enabled" in app.config) ? app.config.registration_enabled : true; 
+    var registration_enabled = ("registration_enabled" in app.config) ? app.config.registration_enabled : true;
 
     if (!registration_enabled) {
-	req.flash('error', "Registration is currently disabled.");
+        req.flash('error', "Registration is currently disabled.");
         res.render('login', { title: "Login / Sign up", user: req.user,
             errormessages:req.flash('error'), infomessages:req.flash('info') });
     } else if (!req.form.isValid) {
@@ -380,9 +380,9 @@ exports.registerpost = function(req, res) {
             } else if (!err) {
                 Openhab.findOne({uuid: req.form.openhabuuid},function(err, existingOpenhab) {
                     if (existingOpenhab) {
-                      req.flash('error', "UUID is already in use on another account.");
-                      res.render('login', { title: "Login / Sign up", user: req.user,
-                          errormessages:req.flash('error'), infomessages:req.flash('info') });
+                        req.flash('error', "UUID is already in use on another account.");
+                        res.render('login', { title: "Login / Sign up", user: req.user,
+                            errormessages:req.flash('error'), infomessages:req.flash('info') });
                     } else {
                         if (!UserPassword.isComplexEnough(req.form.password)) {
                             UserPassword.printPasswordNotComplexEnoughError(req);
@@ -390,47 +390,47 @@ exports.registerpost = function(req, res) {
                                 errormessages:req.flash('error'), infomessages:req.flash('info') });
                             return;
                         }
-                  User.register(req.form.username, req.form.password, function(err, user) {
-                      if (err) {
-                          req.flash('error', "An error occured during registration, please contact support");
-                          logger.error(err);
-                          res.render('login', { title: "Login / Sign up", user: req.user,
-                              errormessages:req.flash('error'), infomessages:req.flash('info') });
-                      } else {
-                          req.login(user, function (error) {
-                              if (error) {
-                                  logger.error(error);
-                                  req.flash('error', "An error occured during registration, please contact support");
-                                  res.render('login', { title: "Login / Sign up", user: req.user,
-                                      errormessages:req.flash('error'), infomessages:req.flash('info') });
-                              } else {
-                                  var openhab = new Openhab({
-                                      account: user.account, uuid: req.form.openhabuuid,
-                                      secret: req.form.openhabsecret
-                                  });
-                                  openhab.save(function (error) {
-                                      if (error) {
-                                          logger.error('Error: ' + error);
-                                          req.flash('error', 'An error occured during registration, please contact support');
-                                          res.redirect('/');
-                                      } else {
-                                          EmailVerification.send(req.user, function (error, verification) {
-                                              if (error) {
-                                                  logger.error('Error: ' + error);
-                                              } else {
-                                                  logger.info('Successfully sent verification email to ' + req.user.username);
-                                              }
-                                          });
-                                          req.flash('info', 'Your account successfully registered. Welcome to the openHAB cloud!');
-                                          res.redirect('/');
-                                      }
-                                  });
-                              }
-                          });
-                      }
-                  });
-                }
-              });
+                        User.register(req.form.username, req.form.password, function(err, user) {
+                            if (err) {
+                                req.flash('error', "An error occured during registration, please contact support");
+                                logger.error(err);
+                                res.render('login', { title: "Login / Sign up", user: req.user,
+                                    errormessages:req.flash('error'), infomessages:req.flash('info') });
+                            } else {
+                                req.login(user, function (error) {
+                                    if (error) {
+                                        logger.error(error);
+                                        req.flash('error', "An error occured during registration, please contact support");
+                                        res.render('login', { title: "Login / Sign up", user: req.user,
+                                            errormessages:req.flash('error'), infomessages:req.flash('info') });
+                                    } else {
+                                        var openhab = new Openhab({
+                                            account: user.account, uuid: req.form.openhabuuid,
+                                            secret: req.form.openhabsecret
+                                        });
+                                        openhab.save(function (error) {
+                                            if (error) {
+                                                logger.error('Error: ' + error);
+                                                req.flash('error', 'An error occured during registration, please contact support');
+                                                res.redirect('/');
+                                            } else {
+                                                EmailVerification.send(req.user, function (error, verification) {
+                                                    if (error) {
+                                                        logger.error('Error: ' + error);
+                                                    } else {
+                                                        logger.info('Successfully sent verification email to ' + req.user.username);
+                                                    }
+                                                });
+                                                req.flash('info', 'Your account successfully registered. Welcome to the openHAB cloud!');
+                                                res.redirect('/');
+                                            }
+                                        });
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
             } else {
                 req.flash('error', "Registration error occured");
                 logger.error(err);
