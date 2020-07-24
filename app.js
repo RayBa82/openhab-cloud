@@ -98,12 +98,15 @@ var flash = require('connect-flash'),
 
 // MongoDB connection settings
 var mongoose = require('mongoose');
-var cacheOpts = {
-    max: 5000,
-    maxAge: 1000 * 60 * 10
-};
-
-require('mongoose-cache').install(mongoose, cacheOpts);
+// MongoDB Caching for Item updates
+var cachegoose = require('cachegoose');
+cachegoose(mongoose, {
+  engine: 'redis',
+  port: config.redis.port, 
+  host: config.redis.host,
+  password: config.redis.password,
+});
+var cacheTTL = config.cacheTTL || 600;
 
 // Try to setup a mongodb connection, otherwise stopping
 var mongoConnect = new MongoConnect(system);
@@ -295,12 +298,13 @@ app.use(function (req, res, next) {
             account: req.user.account
         }).lean().exec(function (error, openhab) {
             res.locals.baseurl = system.getBaseURL();
+            res.locals.proxyUrl = system.getProxyURL();
             if (!error && openhab) {
                 res.locals.openhab = openhab;
                 res.locals.openhabstatus = openhab.status;
                 res.locals.openhablastonline = openhab.last_online;
                 if (openhab.openhabVersion !== undefined) {
-                    res.locals.openhabMajorVersion = openhab.openhabVersion.split('.')[0];
+                    res.locals.openhabMajorVersion = parseInt(openhab.openhabVersion.split('.')[0]);
                 } else {
                     res.locals.openhabMajorVersion = 0;
                 }
@@ -764,7 +768,7 @@ io.sockets.on('connection', function (socket) {
                 logger.info('openHAB-cloud: Item ' + itemName + ' status.length (' + (itemStatus ? itemStatus.length : 'null') + ') is too big or null, ignoring update');
                 return;
             }
-            Openhab.findById(self.openhabId).cache().exec(function (error, openhab) {
+            Openhab.findById(self.openhabId).cache(cacheTTL).exec(function (error, openhab) {
                 if (error) {
                     logger.warn('openHAB-cloud: Unable to find openHAB for itemUpdate: ' + error);
                     return;
@@ -774,10 +778,11 @@ io.sockets.on('connection', function (socket) {
                     return;
                 }
                 // Find the item (which should belong to this openhab)
+                var cacheKey = openhab.id + '-' + itemName;
                 Item.findOne({
                     openhab: openhab.id,
                     name: itemName
-                }).cache().exec(function (error, itemToUpdate) {
+                }).cache(cacheTTL, cacheKey).exec(function (error, itemToUpdate) {
                     if (error) {
                         logger.warn('openHAB-cloud: Unable to find item for itemUpdate: ' + error);
                     }
@@ -805,6 +810,7 @@ io.sockets.on('connection', function (socket) {
                             if (error) {
                                 logger.error('openHAB-cloud: Error saving item: ' + error);
                             }
+                            cachegoose.clearCache(cacheKey);
                         });
                         // Check if the new state is int or float to store it to Number and create new item update event
                         if (!isNaN(parseFloat(itemStatus))) {

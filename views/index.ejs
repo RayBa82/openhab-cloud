@@ -103,9 +103,22 @@
                 <%
                             break;
                         case 'online':
+                            switch (openhabMajorVersion){
+                                case 3:
                 %>
-                                <a href="<%=baseurl%>/start/index">Click here to access your openHAB's dashboard</a>
+                                    Your openHAB is online. <a href="<%=proxyUrl%>/">Click here to access your openHAB's dashboard</a>
                 <%
+                                    break;
+                                case 2:
+                %>
+                                    Your openHAB is online. <a href="<%=proxyUrl%>/start/index">Click here to access your openHAB's dashboard</a>
+                <%
+                                    break;
+                                default:
+                %>
+                                    To remotely access your openHAB's web interface go to <code><%=proxyUrl%>/openhab.app?sitemap=yoursitemapname</code>
+                <%
+                            }
                             break;
                         default:
                 %>
